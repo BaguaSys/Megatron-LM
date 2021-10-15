@@ -23,7 +23,9 @@ import time
 _TRAIN_START_TIME = time.time()
 
 import torch
+import bagua.torch_api as bagua
 from torch.nn.parallel.distributed import DistributedDataParallel as torchDDP
+from bagua.torch_api.ddp_compatible import DistributedDataParallel as baguaDDP
 
 from megatron import get_args
 from megatron import get_timers
@@ -110,6 +112,7 @@ def pretrain(train_valid_test_dataset_provider,
     # Model, optimizer, and learning rate.
     timers('model-and-optimizer-setup').start()
     model, optimizer, lr_scheduler = setup_model_and_optimizer(model_provider)
+    print('rank={}, model={}'.format(args.rank, model))
     timers('model-and-optimizer-setup').stop()
     print_datetime('after model, optimizer, and learning rate '
                    'scheduler are built')
@@ -246,7 +249,16 @@ def get_model(model_provider_func):
     if args.DDP_impl == 'torch':
         i = torch.cuda.current_device()
         model = [torchDDP(model_module, device_ids=[i], output_device=i,
-                          process_group=mpu.get_data_parallel_group())
+                 process_group=mpu.get_data_parallel_group())
+                 for model_module in model]
+        return model
+
+    if args.DDP_impl == 'bagua':
+        i = torch.cuda.current_device()
+        bagua_process_group = bagua.communication.from_torch_group(
+                    mpu.get_data_parallel_group())
+        model = [baguaDDP(model_module, device_ids=[i], output_device=i,
+                          process_group=bagua_process_group)
                  for model_module in model]
         return model
 
@@ -311,7 +323,7 @@ def setup_model_and_optimizer(model_provider_func):
     model = get_model(model_provider_func)
 
     unwrapped_model = unwrap_model(model,
-                                   (torchDDP, LocalDDP, Float16Module))
+                                   (baguaDDP, torchDDP, LocalDDP, Float16Module))
     optimizer = get_megatron_optimizer(unwrapped_model)
 
     lr_scheduler = get_learning_rate_scheduler(optimizer)
@@ -385,7 +397,7 @@ def train_step(forward_step_func, data_iterator,
         elif mpu.is_pipeline_last_stage(ignore_virtual=True):
             unwrapped_model = model[-1]
         unwrapped_model = unwrap_model(
-            unwrapped_model, (torchDDP, LocalDDP, Float16Module))
+            unwrapped_model, (baguaDDP, torchDDP, LocalDDP, Float16Module))
 
         if unwrapped_model.share_word_embeddings:
             word_embeddings_weight = unwrapped_model.word_embeddings_weight()
@@ -560,6 +572,8 @@ def training_log(loss_dict, total_loss_dict, learning_rate, iteration,
             elapsed_time_per_iteration * 1000.0)
         log_string += ' learning rate: {:.3E} |'.format(learning_rate)
         log_string += ' global batch size: {:5d} |'.format(batch_size)
+        log_string += ' speed: {:.2f} seq/sec |'.format(
+            batch_size / elapsed_time_per_iteration)
         for key in total_loss_dict:
             if key not in [advanced_iters_key, skipped_iters_key,
                            nan_iters_key]:
