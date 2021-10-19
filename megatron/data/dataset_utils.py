@@ -578,6 +578,9 @@ def _build_train_valid_test_datasets(data_prefix, data_impl, splits_string,
     train_dataset = build_dataset(0, 'train')
     valid_dataset = build_dataset(1, 'valid')
     test_dataset = build_dataset(2, 'test')
+    print('train_dataset={}, valid_dataset={}, test_dataset={}'.format(
+        train_dataset, valid_dataset, test_dataset,
+    ))
 
     return (train_dataset, valid_dataset, test_dataset)
 
