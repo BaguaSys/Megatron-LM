@@ -579,8 +579,8 @@ def _build_train_valid_test_datasets(data_prefix, data_impl, splits_string,
     valid_dataset = build_dataset(1, 'valid')
     test_dataset = build_dataset(2, 'test')
     print('train_dataset={}, valid_dataset={}, test_dataset={}'.format(
-        train_dataset, valid_dataset, test_dataset,
-    ))
+        len(train_dataset), len(valid_dataset), test_dataset,
+    ), flush=True)
 
     return (train_dataset, valid_dataset, test_dataset)
 
