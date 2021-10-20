@@ -37,8 +37,10 @@ from megatron import update_num_microbatches
 from megatron import mpu
 from megatron import print_rank_0
 from megatron import print_rank_last
-from megatron.checkpointing import load_checkpoint
-from megatron.checkpointing import save_checkpoint
+#from megatron.checkpointing import load_checkpoint
+#from megatron.checkpointing import save_checkpoint
+from bagua.torch_api.model_parallel.moe.megatron import load_checkpoint
+from bagua.torch_api.model_parallel.moe.megatron import save_checkpoint
 from megatron.model import Float16Module
 from megatron.optimizer import get_megatron_optimizer
 from megatron.initialize import initialize_megatron
