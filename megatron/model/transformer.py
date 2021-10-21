@@ -428,9 +428,8 @@ class ParallelTransformerLayer(MegatronModule):
                 eps=args.layernorm_epsilon)
 
         # MLP
-        self.num_local_experts = args.num_local_experts
-        if self.num_local_experts > 0:
-            self.mlp = bagua.moe.MoE(args.hidden_size, bagua.moe.megatron.MoeBaseMLP(), args.num_local_experts, args.top_k)
+        if args.num_local_experts > 0:
+            self.mlp = bagua.moe.megatron.MegatronMLP(args.hidden_size, args.ffn_hidden_size, args.num_local_experts, args.top_k)
         else:
             self.mlp = ParallelMLP(init_method,
                                    output_layer_init_method)
@@ -504,10 +503,6 @@ class ParallelTransformerLayer(MegatronModule):
             layernorm_output = self.post_inter_attention_layernorm(layernorm_input)
 
         # MLP.
-        if self.num_local_experts > 0:
-            output, _, _ = self.mlp(layernorm_output)
-            return output
-
         mlp_output, mlp_bias = self.mlp(layernorm_output)
 
         # Second residual connection.
